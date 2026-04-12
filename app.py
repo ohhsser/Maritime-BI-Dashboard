@@ -505,7 +505,7 @@ with tab5:
                         'precision': precision_score(y_test, y_pred, zero_division=0),
                         'recall':    recall_score(y_test, y_pred, zero_division=0),
                     }
-
+                X_train_sc, X_test_sc, y_train, y_test, scaler = run_ml_pipeline(X, y)
                 scale_pos = (y_train == 0).sum() / (y_train == 1).sum()
 
                 models = [
