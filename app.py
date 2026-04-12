@@ -471,6 +471,23 @@ with tab5:
         if st.button("🚀 Train RF · XGBoost · LightGBM"):
             with st.spinner("Splitting data, applying SMOTE, training 3 models + IF baseline..."):
 
+                # Replace the manual split/SMOTE/scale block with this one line
+                X_train_sc, X_test_sc, y_train, y_test, scaler = run_ml_pipeline(X, y)
+
+                # Split (85/15, matching your notebook)
+                X_train_raw, X_test, y_train_raw, y_test = train_test_split(
+                    X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
+                )
+
+                # SMOTE on training set only
+                smote = SMOTE(random_state=RANDOM_STATE, k_neighbors=5)
+                X_train, y_train = smote.fit_resample(X_train_raw, y_train_raw)
+
+                # Scale
+                scaler = StandardScaler()
+                X_train_sc = scaler.fit_transform(X_train)
+                X_test_sc  = scaler.transform(X_test)
+
                 def evaluate_model(name, clf):
                     clf.fit(X_train_sc, y_train)
                     y_pred = clf.predict(X_test_sc)
