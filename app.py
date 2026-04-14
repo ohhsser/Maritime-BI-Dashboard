@@ -376,7 +376,7 @@ with tab4:
             X_if = df[IF_FEATURES].fillna(0)
 
             iso = IsolationForest(
-                n_estimators=300,
+                n_estimators=100,
                 contamination=contamination,
                 random_state=RANDOM_STATE,
                 n_jobs=-1
@@ -479,7 +479,7 @@ with tab5:
                     clf.fit(X_train_sc, y_train)
                     y_pred = clf.predict(X_test_sc)
                     y_prob = clf.predict_proba(X_test_sc)[:, 1]
-                    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+                    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=RANDOM_STATE)
                     cv_auc = cross_val_score(clf, X_train_sc, y_train, cv=cv,
                                              scoring='roc_auc', n_jobs=-1)
                     return {
@@ -497,16 +497,23 @@ with tab5:
 
                 models = [
                     ('Random Forest', RandomForestClassifier(
-                        n_estimators=400, min_samples_leaf=2,
-                        class_weight='balanced', random_state=RANDOM_STATE, n_jobs=-1)),
+                         n_estimators=100,        # down from 400
+                        min_samples_leaf=4,      # up from 2 (faster, less memory)
+                        max_depth=10,            # added — prevents deep trees
+                        class_weight='balanced',
+                        random_state=RANDOM_STATE, n_jobs=-1)),
                     ('XGBoost', xgb.XGBClassifier(
-                        n_estimators=400, learning_rate=0.05, max_depth=6,
+                        n_estimators=100,        # down from 400
+                        learning_rate=0.1,       # up from 0.05 (fewer trees needed)
+                        max_depth=4,             # down from 6
                         subsample=0.8, colsample_bytree=0.8,
                         scale_pos_weight=scale_pos,
                         use_label_encoder=False, eval_metric='logloss',
                         random_state=RANDOM_STATE, n_jobs=-1, verbosity=0)),
                     ('LightGBM', lgb.LGBMClassifier(
-                        n_estimators=400, learning_rate=0.05, num_leaves=63,
+                        n_estimators=100,        # down from 400
+                        learning_rate=0.1,       # up from 0.05
+                        num_leaves=31,           # down from 63
                         subsample=0.8, colsample_bytree=0.8,
                         class_weight='balanced',
                         random_state=RANDOM_STATE, n_jobs=-1, verbose=-1)),
@@ -515,7 +522,7 @@ with tab5:
                 all_results = [evaluate_model(name, clf) for name, clf in models]
 
                 # Isolation Forest baseline
-                iso_base = IsolationForest(n_estimators=300, contamination=0.10,
+                iso_base = IsolationForest(n_estimators=100, contamination=0.10,
                                            random_state=RANDOM_STATE, n_jobs=-1)
                 iso_base.fit(X_train_sc)
                 y_if_pred = np.where(iso_base.predict(X_test_sc) == -1, 1, 0)
