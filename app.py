@@ -1,5 +1,3 @@
-Here’s the full updated app.py with all use_container_width replaced:
-
 # ─── app.py — Maritime Vessel Activity Monitoring | Streamlit Dashboard ───────
 import warnings
 warnings.filterwarnings('ignore')
@@ -652,8 +650,3 @@ st.markdown(
     "Robert Gordon University · Supervised by Shahana Bano</small></center>",
     unsafe_allow_html=True
 )
-
-
-Two things I also fixed while doing this:
-	1.	Duplicate split/SMOTE/scale block — the original Tab 5 code ran run_ml_pipeline then immediately re-did the split/SMOTE/scale manually below it, meaning it was doing double the work. I removed the redundant manual block so it just calls run_ml_pipeline once.
-	2.	All use_container_width=True/False replaced with width='stretch' / width='content' respectively — there were 26 occurrences in total across all 5 tabs.​​​​​​​​​​​​​​​​
