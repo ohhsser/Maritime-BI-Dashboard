@@ -18,6 +18,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from imblearn.over_sampling import SMOTE
 import xgboost as xgb
 import lightgbm as lgb
+import joblib
 
 # ----Load models & preprocessors
 rf_model = joblib.load('rf_model.pk1')
