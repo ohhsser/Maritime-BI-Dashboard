@@ -560,15 +560,18 @@ st.write(f"**Class distribution:** Normal = {(y==0).sum():,} | Anomaly = {(y==1)
 
 @st.cache_data
 def run_ml_pipeline(X, y):
-            X_train_raw, X_test, y_train_raw, y_test = train_test_split(
-                X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
-            )
-            smote = SMOTE(random_state=RANDOM_STATE, k_neighbors=5)
-            X_train, y_train = smote.fit_resample(X_train_raw, y_train_raw)
-            scaler = StandardScaler()
-            X_train_sc = scaler.fit_transform(X_train)
-            X_test_sc  = scaler.transform(X_test)
-            return X_train_sc, X_test_sc, y_train, y_test, scaler
+        X_train_raw, X_test, y_train_raw, y_test = train_test_split(
+            X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
+        )
+        smote = SMOTE(random_state=RANDOM_STATE, k_neighbors=5)
+        X_train, y_train = smote.fit_resample(X_train_raw, y_train_raw)
+        scaler = StandardScaler()
+        X_train_sc = scaler.fit_transform(X_train)
+        X_test_sc  = scaler.transform(X_test)
+        return X_train_sc, X_test_sc, y_train, y_test, scaler
+
+with tab5:
+        # ....x, y definitions above....
 
 
         if st.button("🚀 Train RF · XGBoost · LightGBM"):
