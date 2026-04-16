@@ -19,6 +19,15 @@ from imblearn.over_sampling import SMOTE
 import xgboost as xgb
 import lightgbm as lgb
 
+# ----Load models & preprocessors
+rf_model = joblib.load('rf_model.pk1')
+xgb_model = joblib.load('xgb_model.pk1')
+lgbm_model = joblib.load('lgbm_model.pk1')
+iso_model = joblib.load('iso_forest.pk1')
+scaler = joblib.load('scaler.pk1')
+le_gear = joblib.load('le_gear.pk1')
+le_flag = joblib.load('le_flag.pk1')
+MODEL_FEATURES = joblib.load('model_features.pk1')
 # ─── Config ───────────────────────────────────────────────────────────────────
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
@@ -430,6 +439,73 @@ with tab4:
             st.session_state['df_with_anomaly'] = df.copy()
             st.success("✅ Anomaly detection complete! Proceed to the ML Classifiers tab.")
 
+def preprocess_for_prediction(df_input):
+    """
+    Apply the same cleaning + feature engineering from Colab Sections 4 & 5,
+    then encode and scale — ready for model prediction.
+    """
+    df = df_input.copy()
+
+    # ── Section 4 cleaning ────────────────────────────────────────────────────
+    time_cols = ['Entry Timestamp', 'Exit Timestamp',
+                 'First Transmission Date', 'Last Transmission Date']
+    for col in time_cols:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], utc=True, errors='coerce')
+
+    df.rename(columns={'Apparent Fishing Hours': 'Fishing_Hours'}, inplace=True)
+    df['Vessel Name'] = df['Vessel Name'].fillna('UNKNOWN')
+    df['Gear Type']   = df['Gear Type'].fillna('UNKNOWN')
+    df['Flag']        = df['Flag'].fillna('UNKNOWN')
+    df['Has_IMO']     = df['IMO'].notnull().astype(int)
+
+    # ── Section 5 feature engineering ────────────────────────────────────────
+    df['Duration_Hours'] = (
+        (df['Exit Timestamp'] - df['Entry Timestamp'])
+        .dt.total_seconds() / 3600
+    ).clip(lower=0)
+
+    df['AIS_History_Days'] = (
+        (df['Last Transmission Date'] - df['First Transmission Date'])
+        .dt.total_seconds() / 86400
+    ).clip(lower=0)
+
+    df['Entry_Month']     = df['Entry Timestamp'].dt.month
+    df['Entry_DayOfWeek'] = df['Entry Timestamp'].dt.dayofweek
+    df['Entry_Hour']      = df['Entry Timestamp'].dt.hour
+
+    df['Fishing_Intensity'] = np.where(
+        df['Duration_Hours'] > 0,
+        df['Fishing_Hours'] / df['Duration_Hours'],
+        0
+    ).clip(max=1)
+
+    df['AIS_Rate_PerDay'] = np.where(
+        df['AIS_History_Days'] > 0,
+        df['Fishing_Hours'] / df['AIS_History_Days'],
+        0
+    )
+
+    df['Fishing_Hours_Log'] = np.log1p(df['Fishing_Hours'])
+    df['Has_CallSign']      = df['CallSign'].notnull().astype(int)
+
+    suspicious_gears    = ['INCONCLUSIVE', 'FISHING', 'UNKNOWN']
+    df['Suspicious_Gear'] = df['Gear Type'].isin(suspicious_gears).astype(int)
+
+    # ── Section 7 label encoding ──────────────────────────────────────────────
+    # Use transform (not fit_transform) — le_gear and le_flag are already fitted
+    df['Gear_Encoded'] = df['Gear Type'].apply(
+        lambda x: le_gear.transform([x])[0] if x in le_gear.classes_ else -1
+    )
+    df['Flag_Encoded'] = df['Flag'].apply(
+        lambda x: le_flag.transform([x])[0] if x in le_flag.classes_ else -1
+    )
+
+    # ── Select and scale features ─────────────────────────────────────────────
+    X = df[MODEL_FEATURES].fillna(0).values
+    X_scaled = scaler.transform(X)   # transform only — scaler already fitted in Colab
+
+    return df, X_scaled
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 5 — ML CLASSIFIERS
@@ -443,20 +519,47 @@ with tab5:
     else:
         df_ml = st.session_state['df_with_anomaly']
 
-        MODEL_FEATURES = [
+    df_processed, X_scaled = preprocess_for_prediction(df)
+
+    df_processed['RF_Pred']   = rf_model.predict(X_scaled)
+    df_processed['XGB_Pred']  = xgb_model.predict(X_scaled)
+    df_processed['LGBM_Pred'] = lgbm_model.predict(X_scaled)
+
+    iso_raw = iso_model.predict(X_scaled)
+    df_processed['IF_Pred'] = np.where(iso_raw == -1, 1, 0)
+
+    df_processed['Ensemble_Vote'] = (
+        df_processed[['RF_Pred','XGB_Pred','LGBM_Pred','IF_Pred']].sum(axis=1) >= 2
+            ).astype(int)
+
+    df_processed['RF_Score']   = rf_model.predict_proba(X_scaled)[:, 1]
+    df_processed['XGB_Score']  = xgb_model.predict_proba(X_scaled)[:, 1]
+    df_processed['LGBM_Score'] = lgbm_model.predict_proba(X_scaled)[:, 1]
+
+    st.subheader('🔍 Prediction Results')
+    st.dataframe(
+                    df_processed[['Vessel Name', 'Flag', 'Gear Type', 'Fishing_Hours',
+                    'RF_Pred', 'XGB_Pred', 'LGBM_Pred', 'IF_Pred', 'Ensemble_Vote']]
+                    .rename(columns={'Ensemble_Vote': 'FLAGGED (Ensemble)'})
+                        )
+
+    flagged = df_processed[df_processed['Ensemble_Vote'] == 1]
+    st.metric('🚨 Ensemble-Flagged Vessels', len(flagged))
+
+MODEL_FEATURES = [
             'Fishing_Hours_Log', 'Duration_Hours', 'AIS_History_Days',
             'Fishing_Intensity', 'AIS_Rate_PerDay', 'Has_IMO',
             'Has_CallSign', 'Suspicious_Gear', 'Entry_Month',
             'Entry_DayOfWeek', 'Entry_Hour', 'Gear_Encoded', 'Flag_Encoded'
         ]
 
-        X = df_ml[MODEL_FEATURES].fillna(0).values
-        y = df_ml['Anomaly'].values
+X = df_ml[MODEL_FEATURES].fillna(0).values
+y = df_ml['Anomaly'].values
 
-        st.write(f"**Class distribution:** Normal = {(y==0).sum():,} | Anomaly = {(y==1).sum():,}")
+st.write(f"**Class distribution:** Normal = {(y==0).sum():,} | Anomaly = {(y==1).sum():,}")
 
-        @st.cache_data
-        def run_ml_pipeline(X, y):
+@st.cache_data
+def run_ml_pipeline(X, y):
             X_train_raw, X_test, y_train_raw, y_test = train_test_split(
                 X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
             )
