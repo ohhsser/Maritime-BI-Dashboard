@@ -526,6 +526,9 @@ with tab5:
     df_processed['XGB_Pred']  = xgb_model.predict(X_scaled)
     df_processed['LGBM_Pred'] = lgbm_model.predict(X_scaled)
 
+    iso_features = ['lat', 'lon', 'sog', 'cog', 'heading']
+    X_scaled = X_scaled[iso_features]
+    iso_raw = iso_model.predict(X_scaled)
     iso_raw = iso_model.predict(X_scaled)
     df_processed['IF_Pred'] = np.where(iso_raw == -1, 1, 0)
 
