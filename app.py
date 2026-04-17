@@ -526,9 +526,6 @@ with tab5:
     df_processed['XGB_Pred']  = xgb_model.predict(X_scaled)
     df_processed['LGBM_Pred'] = lgbm_model.predict(X_scaled)
 
-    iso_features = ['Fishing_Hours_Log', 'Duration_Hours', 'AIS_History_Days', 'Fishing_Intensity', 'AIS_Rate_PerDay', 'Has_IMO', 'Has_CallSign', 'Suspicious_Gear', 'Entry_Month', 'Entry_DayOfWeek', 'Entry_Hour', 'Gear_Encoded', 'Flag_Encoded']
-    X_scaled = X_scaled[iso_features]
-    iso_raw = iso_model.predict(X_scaled)
     iso_raw = iso_model.predict(X_scaled)
     df_processed['IF_Pred'] = np.where(iso_raw == -1, 1, 0)
 
