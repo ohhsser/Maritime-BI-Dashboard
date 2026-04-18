@@ -1,0 +1,38 @@
+[
+  {
+    "Model": "Random Forest",
+    "CV AUC": 0.9986,
+    "Test AUC": 0.9635,
+    "F1": 0.6,
+    "Accuracy": 0.9266,
+    "Precision": 0.6667,
+    "Recall": 0.5455
+  },
+  {
+    "Model": "XGBoost",
+    "CV AUC": 0.9993,
+    "Test AUC": 0.9736,
+    "F1": 0.6333,
+    "Accuracy": 0.9327,
+    "Precision": 0.7037,
+    "Recall": 0.5758
+  },
+  {
+    "Model": "LightGBM",
+    "CV AUC": 0.9992,
+    "Test AUC": 0.9712,
+    "F1": 0.623,
+    "Accuracy": 0.9297,
+    "Precision": 0.6786,
+    "Recall": 0.5758
+  },
+  {
+    "Model": "Isolation Forest",
+    "CV AUC": null,
+    "Test AUC": 0.923,
+    "F1": 0.5217,
+    "Accuracy": 0.9327,
+    "Precision": 0.9231,
+    "Recall": 0.3636
+  }
+]
